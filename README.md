@@ -138,8 +138,6 @@ SimpleSleepNet implements 13 EEG-specific augmentations across 5 categories:
 | **Temporal**         | TimeReversal, TimeWarping, Permutation, RandomTimeShift | Apply non-linear temporal transformations                              |
 
 
-![SSLCRL](https://shaswat-g.github.io/assets/images/projects/SSLCRL.png)
-
 Example implementation of `TailoredMixup` augmentation:
 
 ```python
