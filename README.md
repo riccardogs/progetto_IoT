@@ -14,7 +14,9 @@
 
 ## Overview
 
-SimpleSleepNet is a lightweight self-supervised deep-learning framework for EEG-based sleep stage classification using self-supervised contrastive representation learning achieving 80%+ accuracy with minimal labeled data and a remarkably compact architecture (~200K parameters).
+SimpleSleepNet is a lightweight self-supervised deep-learning framework for EEG-based sleep stage classification using self-supervised contrastive representation learning, achieving 80%+ accuracy with minimal labeled data and a remarkably compact architecture (~200K parameters).
+
+![SSLCRL](https://shaswat-g.github.io/assets/images/projects/simplesleepnet-architecture.svg)
 
 ### Key Features
 
