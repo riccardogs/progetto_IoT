@@ -1,0 +1,7 @@
+# Installa le librerie principali
+!pip install torch torchvision torchaudio
+!pip install numpy scipy matplotlib pandas
+!pip install scikit-learn
+!pip install mne  # per segnali EEG/EDF
+!pip install tensorboard
+!pip install pyedflib  # per leggere file EDF
