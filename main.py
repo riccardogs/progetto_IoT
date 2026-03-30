@@ -86,7 +86,7 @@ def setup_environment(config):
     set_seed(config["seed"])
     logger.info(f"Random seed set to {config['seed']}")
     
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     
     setup_tensorboard(log_dir=f'runs/experiment_{config["experiment_num"]}')

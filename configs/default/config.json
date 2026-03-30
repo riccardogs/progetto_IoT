@@ -4,17 +4,17 @@
   "num_workers": 8,
   "dataset": {
     "dset_path": "./dset/Sleep-EDF-2018/npz/Fpz-Cz",
-    "max_files": 10
+    "max_files": 45
   },
   "pretraining_params": {
-    "batch_size": 1024,
+    "batch_size": 256,
     "temperature": 0.1,
     "dropout_rate": 0.2,
-    "latent_dim": 128,
+    "latent_dim": 64,
     "learning_rate": 0.001,
-    "max_epochs": 10,
-    "check_interval": 3,
-    "min_improvement": 0.01,
+    "max_epochs": 100,
+    "check_interval": 10,
+    "min_improvement": 0.001,
     "best_model_pth": "checkpoints/encoder/encoder_"
   },
   "latent_space_params": {
@@ -30,16 +30,18 @@
   },
   "sup_training_params": {
     "learning_rate": 0.001,
-    "max_epochs": 10,
+    "max_epochs": 50,
     "dropout_rate": 0.5,
-    "check_interval": 2,
+    "check_interval": 5,
     "min_improvement": 0.005,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 1110,
+  "experiment_num": 11116,
   "augmentations": {
-    "TimeWarping": {
-      "p": 1.0
+    "TimeWarping": { 
+      "n_segments": 4,
+      "scale_range": [0.5, 2.0],
+      "p": 0.7
     }
   }
 }

@@ -50,6 +50,11 @@ class SimpleSleepNet(nn.Module):
             # nn.ReLU(),
             # self.dropout,
             
+            # stride=4: il kernel si sposta di 4 campioni alla volta (downsampling x4)
+            # dilation=2: il kernel salta un campione su due, raddoppiando il campo recettivo senza aggiungere parametri
+            # padding=62: aggiunge zeri ai bordi per compensare la perdita di informazioni causata da dilation e kernel_size=32
+
+
             # Second Convolutional Block: Convolution + BatchNorm + ReLU + Dropout
             nn.Conv1d(in_channels=32, out_channels=64, kernel_size=32, stride=4, padding=62, dilation=2, bias=False),
             nn.BatchNorm1d(64),

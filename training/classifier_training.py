@@ -2,10 +2,11 @@ import torch
 import logging
 from utils.tensorboard_logger import get_tensorboard_logger
 import time
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-def evaluate_classifier(encoder, classifier, data_loader, criterion, device='cuda'):
+def evaluate_classifier(encoder, classifier, data_loader, criterion, device='mps'):
     """
     Evaluates the classifier on a given dataset.
 
@@ -69,6 +70,8 @@ def save_model(classifier, save_path):
         logger.error("Error saving model: %s", str(e))
         raise
 
+
+
 def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device, epoch):
     """
     Trains the classifier for one epoch.
@@ -93,9 +96,13 @@ def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device,
         tensorboard_logger = get_tensorboard_logger()
         classifier.train()
         total_loss = 0.0
+        correct = 0
+        total = 0
         start_time = time.time()
         
-        for inputs, labels in train_loader:
+        pbar = tqdm(train_loader, desc=f'Classifier Epoch {epoch+1}')
+        
+        for inputs, labels in pbar:
             inputs = inputs.to(device)
             labels = labels.to(device)
             
@@ -108,6 +115,12 @@ def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device,
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+            
+            _, predicted = outputs.max(1)
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+            
+            pbar.set_postfix({'loss': f'{loss.item():.4f}', 'acc': f'{100.*correct/total:.2f}%'})
         
         avg_train_loss = total_loss / len(train_loader)
         epoch_duration = time.time() - start_time
@@ -120,6 +133,8 @@ def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device,
         logger.error("Error during training epoch: %s", str(e))
         raise
 
+
+
 def train_classifier(
     encoder,
     classifier,
@@ -128,7 +143,7 @@ def train_classifier(
     criterion,
     optimizer,
     num_epochs=50,
-    device='cuda',
+    device='mps',
     save_path='best_classifier/best_classifier_default.pth',
     check_interval=25,
     min_improvement=0.01
