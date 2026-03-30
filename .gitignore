@@ -48,3 +48,4 @@ logs/
 *.idea/
 *.vscode/setup_contrib.sh
 setup_contrib.sh
+venv_sleepnet/
