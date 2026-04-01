@@ -54,30 +54,30 @@ def save_experiment(config_file=CONFIG_FILE):
     # Salva i risultati
     if os.path.exists(f"{PROJECT_DIR}/results"):
         os.system(f"cp -r {PROJECT_DIR}/results {exp_path}/")
-        print(f"  ✅ results/ salvati")
+        print(f"  results/ salvati")
     
     if os.path.exists(f"{PROJECT_DIR}/runs"):
         os.system(f"cp -r {PROJECT_DIR}/runs {exp_path}/")
-        print(f"  ✅ runs/ salvati")
+        print(f"  runs/ salvati")
     
     if os.path.exists(f"{PROJECT_DIR}/logs"):
         os.system(f"cp -r {PROJECT_DIR}/logs {exp_path}/")
-        print(f"  ✅ logs/ salvati")
+        print(f"  logs/ salvati")
     
     if os.path.exists(f"{PROJECT_DIR}/checkpoints"):
         os.system(f"cp -r {PROJECT_DIR}/checkpoints {exp_path}/")
-        print(f"  ✅ checkpoints/ salvati")
+        print(f"  checkpoints/ salvati")
     
     # Salva il config
     config_path = f"{PROJECT_DIR}/{config_file}"
     if os.path.exists(config_path):
         os.system(f"cp {config_path} {exp_path}/config_used.txt")
-        print(f"  ✅ config_used.txt salvato")
+        print(f"  config_used.txt salvato")
     
     # Salva anche i file di configurazione completi
     if os.path.exists(f"{PROJECT_DIR}/configs"):
         os.system(f"cp -r {PROJECT_DIR}/configs {exp_path}/")
-        print(f"  ✅ configs/ salvati")
+        print(f"  configs/ salvati")
     
     # Aggiorna il contatore
     counter_data = {
@@ -98,8 +98,8 @@ def save_experiment(config_file=CONFIG_FILE):
     with open(f"{exp_path}/experiment_info.json", 'w') as f:
         json.dump(info, f, indent=4)
     
-    print(f"✅ Esperimento {exp_name} salvato con successo!")
-    print(f"📁 Percorso: {exp_path}")
+    print(f" Esperimento {exp_name} salvato con successo!")
+    print(f" Percorso: {exp_path}")
     
     return exp_num
 
@@ -111,10 +111,10 @@ def show_status():
             data = json.load(f)
             last_exp = data.get('last_exp', 'N/A')
             if last_exp != 'N/A':
-                print(f"📊 Ultimo esperimento: exp_{last_exp:04d}")
+                print(f" Ultimo esperimento: exp_{last_exp:04d}")
             else:
-                print(f"📊 Ultimo esperimento: Nessuno")
-            print(f"🔢 Prossimo esperimento: exp_{data.get('next_exp_num', 1001):04d}")
-            print(f"📅 Ultimo salvataggio: {data.get('last_save', 'Mai')}")
+                print(f" Ultimo esperimento: Nessuno")
+            print(f" Prossimo esperimento: exp_{data.get('next_exp_num', 1001):04d}")
+            print(f" Ultimo salvataggio: {data.get('last_save', 'Mai')}")
     else:
         print("Nessun esperimento ancora avviato. Prossimo sarà exp_1001")
