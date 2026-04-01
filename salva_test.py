@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import re
 from datetime import datetime
 
 # Configurazione
@@ -8,9 +9,10 @@ PROJECT_DIR = "/content/progetto_IoT"
 RESULTS_BASE = "/content/drive/MyDrive/progetto_IoT_risultati"
 CONFIG_FILE = "configs/default/config.json"
 
-# Variabili globali per tenere traccia dei tempi
+# Variabili globali
 _train_start = None
-_test_start = None
+_contrastive_start = None
+_classifier_start = None
 
 def init_experiment_tracker():
     """Inizializza il tracker degli esperimenti"""
@@ -31,13 +33,13 @@ def init_experiment_tracker():
     return counter_data.get('next_exp_num', 1001)
 
 def start_training_timer():
-    """Avvia il timer per il training"""
+    """Avvia il timer per il training totale"""
     global _train_start
     _train_start = time.time()
     print(f"⏱️ Training iniziato alle: {datetime.now().strftime('%H:%M:%S')}")
 
 def end_training_timer():
-    """Ferma il timer per il training e restituisce la durata"""
+    """Ferma il timer per il training totale e restituisce la durata"""
     global _train_start
     if _train_start is not None:
         duration = time.time() - _train_start
@@ -45,23 +47,38 @@ def end_training_timer():
         return duration
     return 0
 
-def start_test_timer():
-    """Avvia il timer per il test"""
-    global _test_start
-    _test_start = time.time()
-    print(f"⏱️ Test iniziato alle: {datetime.now().strftime('%H:%M:%S')}")
+def start_contrastive_timer():
+    """Avvia il timer per il contrastive training"""
+    global _contrastive_start
+    _contrastive_start = time.time()
+    print(f"⏱️ Contrastive training iniziato alle: {datetime.now().strftime('%H:%M:%S')}")
 
-def end_test_timer():
-    """Ferma il timer per il test e restituisce la durata"""
-    global _test_start
-    if _test_start is not None:
-        duration = time.time() - _test_start
-        _test_start = None
+def end_contrastive_timer():
+    """Ferma il timer per il contrastive training"""
+    global _contrastive_start
+    if _contrastive_start is not None:
+        duration = time.time() - _contrastive_start
+        _contrastive_start = None
         return duration
     return 0
 
-def save_experiment(config_file=CONFIG_FILE, train_duration=None, test_duration=None):
-    """Salva l'esperimento corrente con i tempi di training e test"""
+def start_classifier_timer():
+    """Avvia il timer per il classifier training"""
+    global _classifier_start
+    _classifier_start = time.time()
+    print(f"⏱️ Classifier training iniziato alle: {datetime.now().strftime('%H:%M:%S')}")
+
+def end_classifier_timer():
+    """Ferma il timer per il classifier training"""
+    global _classifier_start
+    if _classifier_start is not None:
+        duration = time.time() - _classifier_start
+        _classifier_start = None
+        return duration
+    return 0
+
+def save_experiment(config_file=CONFIG_FILE, train_duration=None, contrastive_duration=None, classifier_duration=None, log_file=None):
+    """Salva l'esperimento corrente con i tempi di training e risultati"""
     # Assicurati che la cartella base esista
     os.system(f"mkdir -p {RESULTS_BASE}")
     
@@ -114,6 +131,31 @@ def save_experiment(config_file=CONFIG_FILE, train_duration=None, test_duration=
         os.system(f"cp -r {PROJECT_DIR}/configs {exp_path}/")
         print(f"  ✅ configs/ salvati")
     
+    # ===== LEGGI I RISULTATI DAI LOG =====
+    accuracy = None
+    macro_f1 = None
+    
+    # Cerca il file di log
+    if log_file is None:
+        import glob
+        log_files = glob.glob(f"{PROJECT_DIR}/logs/experiment_*.log")
+        if log_files:
+            log_file = max(log_files, key=os.path.getctime)
+    
+    if log_file and os.path.exists(log_file):
+        with open(log_file, 'r') as f:
+            log_content = f.read()
+        
+        # Accuracy finale
+        match = re.search(r'Validation Accuracy: ([\d.]+)', log_content)
+        if match:
+            accuracy = float(match.group(1))
+        
+        # Macro F1 Score
+        match = re.search(r'Macro F1 Score: ([\d.]+)', log_content)
+        if match:
+            macro_f1 = float(match.group(1))
+    
     # ===== SALVA FILE CON I TEMPI =====
     times_file = f"{exp_path}/tempi_esecuzione.txt"
     with open(times_file, 'w') as f:
@@ -122,40 +164,43 @@ def save_experiment(config_file=CONFIG_FILE, train_duration=None, test_duration=
         f.write(f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write("=" * 60 + "\n\n")
         
+        # TEMPI
         f.write("TEMPI DI ESECUZIONE:\n")
         f.write("-" * 40 + "\n")
         
         if train_duration is not None and train_duration > 0:
             minutes = int(train_duration // 60)
             seconds = int(train_duration % 60)
-            f.write(f"Training: {minutes} minuti e {seconds} secondi ({train_duration:.2f} secondi)\n")
-        else:
-            f.write("Training: tempo non registrato\n")
+            f.write(f"Training totale: {minutes} minuti e {seconds} secondi ({train_duration:.2f} secondi)\n")
         
-        if test_duration is not None and test_duration > 0:
-            minutes = int(test_duration // 60)
-            seconds = int(test_duration % 60)
-            f.write(f"Test: {minutes} minuti e {seconds} secondi ({test_duration:.2f} secondi)\n")
-        else:
-            f.write("Test: tempo non registrato\n")
+        if contrastive_duration is not None and contrastive_duration > 0:
+            minutes = int(contrastive_duration // 60)
+            seconds = int(contrastive_duration % 60)
+            f.write(f"  - Contrastive training: {minutes} minuti e {seconds} secondi ({contrastive_duration:.2f} secondi)\n")
+        
+        if classifier_duration is not None and classifier_duration > 0:
+            minutes = int(classifier_duration // 60)
+            seconds = int(classifier_duration % 60)
+            f.write(f"  - Classifier training: {minutes} minuti e {seconds} secondi ({classifier_duration:.2f} secondi)\n")
         
         f.write("\n" + "=" * 60 + "\n")
+        
+        # RISULTATI
+        f.write("RISULTATI:\n")
+        f.write("-" * 40 + "\n")
+        
+        if accuracy is not None:
+            f.write(f"Accuracy finale: {accuracy*100:.2f}%\n")
+        
+        if macro_f1 is not None:
+            f.write(f"Macro F1 Score: {macro_f1:.4f}\n")
+        
+        f.write("\n" + "=" * 60 + "\n")
+        
+        # DETTAGLI CONFIG
         f.write("DETTAGLI ESPERIMENTO:\n")
         f.write("-" * 40 + "\n")
         f.write(f"Configurazione usata: {config_file}\n")
-        
-        # Cerca di leggere il numero di epoche dal config
-        try:
-            with open(config_path, 'r') as cfg:
-                config_data = json.load(cfg)
-                if 'num_epochs' in config_data:
-                    f.write(f"Epoche: {config_data['num_epochs']}\n")
-                if 'batch_size' in config_data:
-                    f.write(f"Batch size: {config_data['batch_size']}\n")
-                if 'learning_rate' in config_data:
-                    f.write(f"Learning rate: {config_data['learning_rate']}\n")
-        except:
-            pass
     
     print(f"  ✅ tempi_esecuzione.txt salvato")
     
@@ -169,20 +214,8 @@ def save_experiment(config_file=CONFIG_FILE, train_duration=None, test_duration=
     with open(counter_file, 'w') as f:
         json.dump(counter_data, f, indent=4)
     
-    # Crea un file info aggiornato
-    info = {
-        'experiment_number': exp_num,
-        'date': str(datetime.now()),
-        'config_used': config_file,
-        'training_duration_sec': train_duration if train_duration else 0,
-        'test_duration_sec': test_duration if test_duration else 0
-    }
-    with open(f"{exp_path}/experiment_info.json", 'w') as f:
-        json.dump(info, f, indent=4)
-    
     print(f"\n✅ Esperimento {exp_name} salvato con successo!")
     print(f"📁 Percorso: {exp_path}")
-    print(f"⏱️ Tempi salvati in: tempi_esecuzione.txt")
     
     return exp_num
 
