@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-def evaluate_classifier(encoder, classifier, data_loader, criterion, device='mps'):
+def evaluate_classifier(encoder, classifier, data_loader, criterion, device='cuda'):
     """
     Evaluates the classifier on a given dataset.
 

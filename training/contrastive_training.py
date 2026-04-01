@@ -86,7 +86,7 @@ def compute_validation_loss(model, dataloader, device, temperature):
     model.train()
     return average_loss
 
-def train_contrastive_model(model, dataloader, optimizer, device='mps', num_epochs=5, temperature=0.1, val_dataloader=None, 
+def train_contrastive_model(model, dataloader, optimizer, device='cuda', num_epochs=5, temperature=0.1, val_dataloader=None, 
                             check_interval=50, min_improvement=0.01, best_model_path='best_encoder.pth'):
     """
     Contrastive training loop for a model using NT-Xent loss.
