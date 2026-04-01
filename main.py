@@ -16,6 +16,15 @@ from training import train_contrastive_model, train_classifier
 from evaluation import LatentSpaceEvaluator, get_predictions, ResultsSaver
 from augmentations import load_augmentations_from_config
 
+# Importa le funzioni di timer
+try:
+    from salva_test import set_phase
+    TIMER_AVAILABLE = True
+    print("Timer module loaded")
+except ImportError:
+    TIMER_AVAILABLE = False
+    print("⚠️ Timer module not available")
+
 def suppress_warnings():
     import warnings
     warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -140,6 +149,10 @@ def pretrain_contrastive_model(config, eeg_data, device, logger, tensorboard_log
     TEMP = config["pretraining_params"]["temperature"]
     augmentations = load_augmentations_from_config(config=config)
 
+    # ===== AVVIA TIMER CONTRASTIVE =====
+    if TIMER_AVAILABLE:
+        set_phase("contrastive")
+    
     train_contrastive_dataset = ContrastiveEEGDataset(eeg_data['train'], augmentations=augmentations)
     train_contrastive_loader = DataLoader(train_contrastive_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers = NUM_WORKERS)
     logger.info(f"Contrastive train dataset created with {len(train_contrastive_dataset)} samples")
@@ -174,14 +187,6 @@ def pretrain_contrastive_model(config, eeg_data, device, logger, tensorboard_log
     )
     logger.info("Contrastive training complete")
     
-    # Remove the model saving code, as it's handled inside train_contrastive_model
-    # try:
-    #     torch.save(encoder.state_dict(), best_encoder_pth)
-    #     logger.info("Saved best encoder to %s", best_encoder_pth)
-    # except Exception as e:
-    #     logger.error("Error saving model: %s", str(e))
-    #     raise
-
     # Load the best encoder weights after training
     try:
         encoder.load_state_dict(torch.load(best_encoder_pth))
@@ -241,6 +246,10 @@ def train_supervised_classifier(config, encoder, train_loader, test_loader, devi
     Returns:
         tuple: Trained classifier model and path to the best model checkpoint.
     """
+    # ===== AVVIA TIMER CLASSIFIER =====
+    if TIMER_AVAILABLE:
+        set_phase("classifier")
+    
     LATENT_DIM = config["pretraining_params"]["latent_dim"]
     DROP_PROB = config["sup_training_params"]["dropout_rate"]
     classifier = SleepStageClassifier(input_dim=LATENT_DIM, num_classes=NUM_CLASSES, dropout_probs=DROP_PROB).to(device)
@@ -312,10 +321,23 @@ def main():
 
     logger, device, tensorboard_logger = setup_environment(config)
     eeg_data, train_loader, test_loader = prepare_datasets(config, logger)
+    
+    # Contrastive training (con timer automatico)
     encoder = pretrain_contrastive_model(config, eeg_data, device, logger, tensorboard_logger)
+    
+    # Latent space evaluation
     evaluate_latent_space(config, encoder, eeg_data, device, logger)
+    
+    # Classifier training (con timer automatico)
     classifier, _ = train_supervised_classifier(config, encoder, train_loader, test_loader, device, logger, tensorboard_logger)
+    
+    # Test e salvataggio risultati
     test_and_save_results(config, encoder, classifier, test_loader, device, logger)
+    
+    # ===== FINE ESPERIMENTO =====
+    if TIMER_AVAILABLE:
+        set_phase("end")
+    
     logger.info("Experiment complete")
     close_tensorboard()
 
