@@ -36,7 +36,7 @@
     "min_improvement": 0.0005,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 10005,
+  "experiment_num": 10007,
   "augmentations": {
     "TimeWarping": {
       "p": 0.7,
@@ -44,6 +44,13 @@
       "scale_range": [
         0.5,
         2.0
+      ]
+    },
+    "RandomAmplitudeScale": {
+      "p": 0.4,
+      "range": [
+        0.7,
+        1.5
       ]
     }
   }
