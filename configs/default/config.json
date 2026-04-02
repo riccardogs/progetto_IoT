@@ -12,8 +12,8 @@
     "dropout_rate": 0.2,
     "latent_dim": 64,
     "learning_rate": 0.001,
-    "max_epochs": 3,
-    "check_interval": 1,
+    "max_epochs": 10,
+    "check_interval": 10,
     "min_improvement": 0.0001,
     "best_model_pth": "checkpoints/encoder/encoder_"
   },
@@ -30,13 +30,13 @@
   },
   "sup_training_params": {
     "learning_rate": 0.001,
-    "max_epochs": 3,
+    "max_epochs": 15,
     "dropout_rate": 0.5,
-    "check_interval": 1,
+    "check_interval": 15,
     "min_improvement": 0.0005,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 10004,
+  "experiment_num": 10005,
   "augmentations": {
     "TimeWarping": {
       "p": 0.7,
