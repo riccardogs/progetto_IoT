@@ -12,7 +12,7 @@
     "dropout_rate": 0.2,
     "latent_dim": 64,
     "learning_rate": 0.001,
-    "max_epochs": 1,
+    "max_epochs": 3,
     "check_interval": 1,
     "min_improvement": 0.0001,
     "best_model_pth": "checkpoints/encoder/encoder_"
@@ -30,18 +30,21 @@
   },
   "sup_training_params": {
     "learning_rate": 0.001,
-    "max_epochs": 1,
+    "max_epochs": 3,
     "dropout_rate": 0.5,
     "check_interval": 1,
     "min_improvement": 0.0005,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 10002,
+  "experiment_num": 10004,
   "augmentations": {
-    "TimeWarping": { 
+    "TimeWarping": {
+      "p": 0.7,
       "n_segments": 4,
-      "scale_range": [0.5, 2.0],
-      "p": 0.7
+      "scale_range": [
+        0.5,
+        2.0
+      ]
     }
   }
 }
