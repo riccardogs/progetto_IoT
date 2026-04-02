@@ -3,6 +3,8 @@ import os
 import argparse
 import json
 import logging
+import time
+from datetime import timedelta
 
 import torch
 import torch.optim as optim
@@ -174,14 +176,6 @@ def pretrain_contrastive_model(config, eeg_data, device, logger, tensorboard_log
     )
     logger.info("Contrastive training complete")
     
-    # Remove the model saving code, as it's handled inside train_contrastive_model
-    # try:
-    #     torch.save(encoder.state_dict(), best_encoder_pth)
-    #     logger.info("Saved best encoder to %s", best_encoder_pth)
-    # except Exception as e:
-    #     logger.error("Error saving model: %s", str(e))
-    #     raise
-
     # Load the best encoder weights after training
     try:
         encoder.load_state_dict(torch.load(best_encoder_pth))
@@ -297,10 +291,48 @@ def test_and_save_results(config, encoder, classifier, test_loader, device, logg
     )
     logger.info("Classification results saved")
 
+def save_timing_file(config, timings):
+    """
+    Save execution times to a txt file in the results folder.
+    
+    Args:
+        config (dict): Configuration dictionary.
+        timings (dict): Dictionary with timing information for each phase.
+    """
+    results_folder = config.get("results_folder", "results")
+    experiment_num = config.get("experiment_num", "default")
+    
+    # Create results folder if it doesn't exist
+    os.makedirs(results_folder, exist_ok=True)
+    
+    filepath = os.path.join(results_folder, f"execution_times_{experiment_num}.txt")
+    
+    with open(filepath, 'w') as f:
+        f.write("=" * 60 + "\n")
+        f.write(f"EXECUTION TIMES - Experiment {experiment_num}\n")
+        f.write(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write("=" * 60 + "\n\n")
+        
+        f.write("TIMING BREAKDOWN:\n")
+        f.write("-" * 40 + "\n")
+        
+        for phase, duration in timings.items():
+            phase_name = phase.replace('_', ' ').title()
+            f.write(f"{phase_name:30}: {duration:8.2f} seconds")
+            f.write(f"  ({str(timedelta(seconds=duration))})\n")
+        
+        f.write("\n" + "=" * 60 + "\n")
+        f.write(f"{'TOTAL EXECUTION TIME':30}: {timings['total']:8.2f} seconds")
+        f.write(f"  ({str(timedelta(seconds=timings['total']))})\n")
+    
+    print(f"Timing saved to {filepath}")
+
 def main():
     """
     Main function to run the entire pipeline.
     """
+    start_total = time.time()
+    
     args = parse_args()
 
     if args.list_configs:
@@ -311,11 +343,47 @@ def main():
     validate_config(config)
 
     logger, device, tensorboard_logger = setup_environment(config)
+    
+    # Data preparation timing
+    start_prep = time.time()
     eeg_data, train_loader, test_loader = prepare_datasets(config, logger)
+    prep_time = time.time() - start_prep
+    
+    # Contrastive training timing
+    start_ct = time.time()
     encoder = pretrain_contrastive_model(config, eeg_data, device, logger, tensorboard_logger)
+    contrastive_time = time.time() - start_ct
+    
+    # Latent space evaluation timing
+    start_le = time.time()
     evaluate_latent_space(config, encoder, eeg_data, device, logger)
+    latent_eval_time = time.time() - start_le
+    
+    # Classifier training timing
+    start_cl = time.time()
     classifier, _ = train_supervised_classifier(config, encoder, train_loader, test_loader, device, logger, tensorboard_logger)
+    classifier_time = time.time() - start_cl
+    
+    # Testing and results saving timing
+    start_test = time.time()
     test_and_save_results(config, encoder, classifier, test_loader, device, logger)
+    test_time = time.time() - start_test
+    
+    total_time = time.time() - start_total
+    
+    # Save execution times to file
+    save_timing_file(
+        config=config,
+        timings={
+            'data_preparation': prep_time,
+            'contrastive_training': contrastive_time,
+            'latent_space_evaluation': latent_eval_time,
+            'classifier_training': classifier_time,
+            'testing_and_saving': test_time,
+            'total': total_time
+        }
+    )
+    
     logger.info("Experiment complete")
     close_tensorboard()
 

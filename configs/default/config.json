@@ -36,7 +36,7 @@
     "min_improvement": 0.0005,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 10000,
+  "experiment_num": 10002,
   "augmentations": {
     "TimeWarping": { 
       "n_segments": 4,
