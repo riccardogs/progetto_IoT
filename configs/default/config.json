@@ -45,13 +45,6 @@
         0.5,
         2.0
       ]
-    },
-    "RandomAmplitudeScale": {
-      "p": 0.4,
-      "range": [
-        0.7,
-        1.5
-      ]
     }
   }
 }
