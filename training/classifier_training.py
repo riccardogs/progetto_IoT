@@ -3,26 +3,87 @@ import logging
 from utils.tensorboard_logger import get_tensorboard_logger
 import time
 from tqdm import tqdm
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
+def get_custom_class_weights(device='cuda'):
+    """
+    Pesi personalizzati per bilanciare N1/N3 senza uccidere N2.
+    """
+    # Pesi più equilibrati per proteggere N2
+    class_weights = torch.tensor([0.6, 1.5, 1.0, 1.5, 0.8], dtype=torch.float).to(device)
+    
+    class_names = ['W', 'N1', 'N2', 'N3', 'REM']
+    logger.info("=" * 50)
+    logger.info("CUSTOM CLASS WEIGHTS (bilanciati):")
+    for i, (name, weight) in enumerate(zip(class_names, class_weights)):
+        logger.info(f"  {name}: {weight:.4f}")
+    logger.info("=" * 50)
+    
+    return class_weights
+
+def get_class_weights_from_loader(train_loader, num_classes=5, device='cuda'):
+    """
+    Calcola i pesi automaticamente dal dataset (alternativa).
+    """
+    from sklearn.utils.class_weight import compute_class_weight
+    
+    all_labels = []
+    for _, labels in train_loader:
+        all_labels.extend(labels.cpu().numpy())
+    
+    class_weights = compute_class_weight(
+        'balanced',
+        classes=np.arange(num_classes),
+        y=all_labels
+    )
+    
+    class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
+    
+    class_names = ['W', 'N1', 'N2', 'N3', 'REM']
+    logger.info("=" * 50)
+    logger.info("AUTO CLASS WEIGHTS (dal dataset):")
+    for i, (name, weight) in enumerate(zip(class_names, class_weights)):
+        logger.info(f"  {name}: {weight:.4f}")
+    logger.info("=" * 50)
+    
+    return class_weights
+
+def calculate_class_accuracy(encoder, classifier, data_loader, device='cuda', num_classes=5):
+    """
+    Calcola l'accuracy per singola classe.
+    """
+    encoder.eval()
+    classifier.eval()
+    
+    correct_per_class = torch.zeros(num_classes, device=device)
+    total_per_class = torch.zeros(num_classes, device=device)
+    
+    with torch.no_grad():
+        for inputs, labels in data_loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            
+            embeddings = encoder(inputs)
+            outputs = classifier(embeddings)
+            _, predictions = torch.max(outputs, 1)
+            
+            for i in range(num_classes):
+                mask = (labels == i)
+                total_per_class[i] += mask.sum().item()
+                correct_per_class[i] += (predictions[mask] == labels[mask]).sum().item()
+    
+    accuracy_per_class = torch.zeros(num_classes)
+    for i in range(num_classes):
+        if total_per_class[i] > 0:
+            accuracy_per_class[i] = 100.0 * correct_per_class[i] / total_per_class[i]
+    
+    return accuracy_per_class.cpu().numpy()
 
 def evaluate_classifier(encoder, classifier, data_loader, criterion, device='cuda'):
     """
     Evaluates the classifier on a given dataset.
-
-    Parameters:
-    - encoder (nn.Module): Frozen encoder to generate embeddings.
-    - classifier (nn.Module): Classifier to evaluate.
-    - data_loader (DataLoader): DataLoader providing the evaluation dataset.
-    - criterion (nn.Module): Loss function.
-    - device (str): Device to run the evaluation on ('cuda' or 'cpu').
-
-    Returns:
-    - avg_loss (float): Average loss over the dataset.
-    - accuracy (float): Classification accuracy.
-
-    Raises:
-    - Exception: If an error occurs during evaluation.
     """
     try:
         encoder.eval()
@@ -55,13 +116,6 @@ def evaluate_classifier(encoder, classifier, data_loader, criterion, device='cud
 def save_model(classifier, save_path):
     """
     Saves the classifier model to the specified path.
-
-    Parameters:
-    - classifier (nn.Module): Classifier model to save.
-    - save_path (str): Path to save the model.
-
-    Raises:
-    - Exception: If an error occurs during saving.
     """
     try:
         torch.save(classifier.state_dict(), save_path)
@@ -70,27 +124,9 @@ def save_model(classifier, save_path):
         logger.error("Error saving model: %s", str(e))
         raise
 
-
-
 def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device, epoch):
     """
     Trains the classifier for one epoch.
-
-    Parameters:
-    - encoder (nn.Module): Frozen encoder to generate embeddings.
-    - classifier (nn.Module): Classifier to train.
-    - train_loader (DataLoader): DataLoader for the training set.
-    - criterion (nn.Module): Loss function.
-    - optimizer (Optimizer): Optimizer for the classifier.
-    - device (str): Device to run the training on ('cuda' or 'cpu').
-    - epoch (int): Current epoch number.
-
-    Returns:
-    - avg_train_loss (float): Average training loss for the epoch.
-    - epoch_duration (float): Duration of the epoch in seconds.
-
-    Raises:
-    - Exception: If an error occurs during training.
     """
     try:
         tensorboard_logger = get_tensorboard_logger()
@@ -124,8 +160,6 @@ def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device,
         
         avg_train_loss = total_loss / len(train_loader)
         epoch_duration = time.time() - start_time
-        # Log training loss and epoch duration
-
         tensorboard_logger.add_scalar('Train/Loss', avg_train_loss, epoch)
         tensorboard_logger.add_scalar('Train/Epoch_Duration', epoch_duration, epoch)
         return avg_train_loss, epoch_duration
@@ -133,47 +167,41 @@ def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device,
         logger.error("Error during training epoch: %s", str(e))
         raise
 
-
-
 def train_classifier(
     encoder,
     classifier,
     train_loader,
     val_loader,
-    criterion,
-    optimizer,
+    criterion=None,
+    optimizer=None,
     num_epochs=50,
     device='mps',
     save_path='best_classifier/best_classifier_default.pth',
     check_interval=25,
-    min_improvement=0.01
+    min_improvement=0.01,
+    use_weighted_loss=True,
+    custom_weights=True  # NUOVO: usa pesi personalizzati invece di auto
 ):
     """
     Trains the classifier while keeping the encoder frozen.
-
-    Parameters:
-    - encoder (nn.Module): Frozen encoder to generate embeddings.
-    - classifier (nn.Module): Classifier to train.
-    - train_loader (DataLoader): DataLoader for the training set.
-    - val_loader (DataLoader): DataLoader for the validation set.
-    - criterion (nn.Module): Loss function.
-    - optimizer (Optimizer): Optimizer for the classifier.
-    - num_epochs (int): Number of training epochs.
-    - device (str): Device to run the training on ('cuda' or 'cpu').
-    - save_path (str): Path to save the best classifier model.
-    - check_interval (int): Number of epochs between validation checks.
-    - min_improvement (float): Minimum improvement in validation loss to continue training.
-
-    Returns:
-    - best_val_loss (float): Best validation loss achieved during training.
-
-    Raises:
-    - Exception: If an error occurs during training.
     """
     try:
         tensorboard_logger = get_tensorboard_logger()
         encoder.eval()
         classifier.to(device)
+        
+        # CALCOLA PESI PER CLASSE
+        if use_weighted_loss and criterion is None:
+            if custom_weights:
+                class_weights = get_custom_class_weights(device)
+            else:
+                class_weights = get_class_weights_from_loader(train_loader, num_classes=5, device=device)
+            criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+            logger.info("✅ Using weighted CrossEntropyLoss with CUSTOM weights")
+        elif criterion is None:
+            criterion = torch.nn.CrossEntropyLoss()
+            logger.info("Using standard CrossEntropyLoss")
+        
         best_val_loss = float('inf')
         best_accuracy = 0.0
         total_epochs = 0
@@ -199,9 +227,16 @@ def train_classifier(
                 "Validation Loss after %d epochs: %.4f, Validation Accuracy: %.4f",
                 total_epochs, val_loss, val_accuracy
             )
-            # Log validation metrics
+            
+            # Calcola accuracy per classe
+            class_acc = calculate_class_accuracy(encoder, classifier, val_loader, device, num_classes=5)
+            logger.info(f"📊 Class accuracy - W: {class_acc[0]:.2f}%, N1: {class_acc[1]:.2f}%, N2: {class_acc[2]:.2f}%, N3: {class_acc[3]:.2f}%, REM: {class_acc[4]:.2f}%")
+            
+            # Log metrics
             tensorboard_logger.add_scalar('Validation/Loss', val_loss, total_epochs)
             tensorboard_logger.add_scalar('Validation/Accuracy', val_accuracy, total_epochs)
+            for i, acc in enumerate(class_acc):
+                tensorboard_logger.add_scalar(f'Validation/Acc_Class_{i}', acc, total_epochs)
             
             improvement = best_val_loss - val_loss
             if improvement > min_improvement:
@@ -209,8 +244,7 @@ def train_classifier(
                 best_accuracy = val_accuracy
                 epochs_since_improvement = 0
                 save_model(classifier, save_path)
-                logger.info("Improved validation loss. Model saved to %s.", save_path)
-                # Log checkpoint metrics
+                logger.info("✅ Improved validation loss. Model saved to %s.", save_path)
                 tensorboard_logger.add_scalar('Checkpoint/Best_Loss', best_val_loss, total_epochs)
                 tensorboard_logger.add_scalar('Checkpoint/Best_Accuracy', best_accuracy, total_epochs)
             else:

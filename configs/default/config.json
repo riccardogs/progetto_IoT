@@ -8,7 +8,7 @@
   },
   "pretraining_params": {
     "batch_size": 512,
-    "temperature": 0.1,
+    "temperature": 0.15,
     "dropout_rate": 0.2,
     "latent_dim": 64,
     "learning_rate": 0.001,
@@ -36,7 +36,7 @@
     "min_improvement": 0.0005,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 10008,
+  "experiment_num": 10010,
   "augmentations": {
     "TimeWarping": {
       "p": 0.7,
@@ -44,19 +44,6 @@
       "scale_range": [
         0.5,
         2.0
-      ]
-    },
-    "TimeReverse": {
-      "p": 0.3
-    },
-    "SignFlip": {
-      "p": 0.15
-    },
-    "RandomZeroMasking": {
-      "p": 0.2,
-      "range": [
-        0,
-        200
       ]
     }
   }

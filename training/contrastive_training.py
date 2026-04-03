@@ -118,7 +118,10 @@ def train_contrastive_model(model, dataloader, optimizer, device='cuda', num_epo
     
     model.to(device)
     model.train()
+    
+    # LOG DELLA TEMPERATURA USATA
     logger.info(f"Starting contrastive training for {num_epochs} epochs on {device}.")
+    logger.info(f"Temperature: {temperature} (valori più alti aiutano a separare classi simili come N1 e REM)")
     
     best_val_loss = float('inf')
     epochs_since_improvement = 0
