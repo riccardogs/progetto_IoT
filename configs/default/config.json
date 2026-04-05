@@ -12,9 +12,9 @@
     "dropout_rate": 0.2,
     "latent_dim": 64,
     "learning_rate": 0.001,
-    "max_epochs": 10,
-    "check_interval": 10,
-    "min_improvement": 0.0001,
+    "max_epochs": 30,
+    "check_interval": 5,
+    "min_improvement": 0.001,
     "best_model_pth": "checkpoints/encoder/encoder_"
   },
   "latent_space_params": {
@@ -30,25 +30,27 @@
   },
   "sup_training_params": {
     "learning_rate": 0.001,
-    "max_epochs": 15,
+    "max_epochs": 50,
     "dropout_rate": 0.5,
-    "check_interval": 15,
-    "min_improvement": 0.0005,
+    "check_interval": 10,
+    "min_improvement": 0.001,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 10014,
-  
+  "experiment_num": 10116,
   "augmentations": {
     "TimeWarping": {
-        "p": 0.7,
-        "n_segments": 4,
-        "scale_range": [0.5, 2.0]
+      "p": 0.7,
+      "n_segments": 4,
+      "scale_range": [0.5, 2.0]
     },
     "RandomTimeShift": {
-        "p": 0.35,
-        "range": [-80, 80],
-        "mode": "constant",
-        "cval": 0.0
+      "p": 0.4,
+      "range": [-100, 100],
+      "mode": "constant",
+      "cval": 0.0
+    },
+    "SignFlip": {
+      "p": 0.25
     }
   }
 }

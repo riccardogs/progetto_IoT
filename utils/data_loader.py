@@ -64,7 +64,8 @@ def load_eeg_data(dataset_path: str, num_files_to_process: Optional[int] = None)
             for label in eeg_data[set_name].keys():
                 eeg_data[set_name][label] = np.array(eeg_data[set_name][label])
         
-        eeg_data = oversample_minority_classes(eeg_data, target_count=6800)
+        # OVERSAMPLING MIRATO: N1=5500, N2=8500, N3=6800, REM=8500
+        eeg_data = oversample_minority_classes(eeg_data, target_n1=5500, target_n2=8500, target_n3=6800, target_rem=8500)
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
@@ -72,15 +73,25 @@ def load_eeg_data(dataset_path: str, num_files_to_process: Optional[int] = None)
 
     return eeg_data
 
-def oversample_minority_classes(eeg_data, target_count=6800, random_seed=42):
+def oversample_minority_classes(eeg_data, target_n1=5500, target_n2=8500, target_n3=6800, target_rem=8500, random_seed=42):
+    """
+    Oversampling differenziato per classe:
+    - N1: ridotto per diminuire falsi positivi
+    - N2 e REM: aumentati per migliorare performance
+    - N3: invariato
+    """
     np.random.seed(random_seed)
     
     class_names = ['W', 'N1', 'N2', 'N3', 'REM']
-    classes_to_upsample = [1, 2, 3, 4]
+    targets = {1: target_n1, 2: target_n2, 3: target_n3, 4: target_rem}
     
     for set_name in ['train']:
         logger.info(f"=" * 50)
-        logger.info(f"OVERSAMPLING - target {target_count} campioni per N1,N2,N3,REM:")
+        logger.info(f"OVERSAMPLING MIRATO:")
+        logger.info(f"  N1 target: {target_n1}")
+        logger.info(f"  N2 target: {target_n2}")
+        logger.info(f"  N3 target: {target_n3}")
+        logger.info(f"  REM target: {target_rem}")
         
         counts = {}
         for label in range(5):
@@ -88,7 +99,7 @@ def oversample_minority_classes(eeg_data, target_count=6800, random_seed=42):
         
         logger.info(f"  W: {counts[0]} (lasciato invariato)")
         
-        for label in classes_to_upsample:
+        for label, target_count in targets.items():
             current_count = counts[label]
             class_name = class_names[label]
             

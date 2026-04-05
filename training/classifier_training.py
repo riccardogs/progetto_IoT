@@ -12,7 +12,7 @@ def get_custom_class_weights(device='cuda'):
     Pesi personalizzati per bilanciare N1/N3 senza uccidere N2.
     """
     # Pesi più equilibrati per proteggere N2
-    class_weights = torch.tensor([0.5, 1.0, 1.2, 1.0, 1.5], dtype=torch.float).to(device)
+    class_weights = torch.tensor([0.5, 1.0, 1.2, 1.0, 1.2], dtype=torch.float).to(device)
     
     class_names = ['W', 'N1', 'N2', 'N3', 'REM']
     logger.info("=" * 50)
