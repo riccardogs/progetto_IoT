@@ -22,7 +22,8 @@ def load_augmentations_from_config(config):
         "CutoutResize": CutoutResize,
         "TailoredMixup": TailoredMixup,
         "AverageFilter": AverageFilter,
-        "SignFlip": SignFlip
+        "SignFlip": SignFlip,
+        "RandomFrequencyMask": RandomFrequencyMask,
     }
 
     augmentations = []
@@ -281,6 +282,7 @@ class SignFlip(BaseAugmentation):
         except Exception as e:
             logger.error(f"Error in SignFlip: {e}")
         return x
+  
 
 class TailoredMixup(BaseAugmentation):
     def __init__(self, p=0.5, fs=100, beta=0.5):
@@ -312,3 +314,38 @@ class TailoredMixup(BaseAugmentation):
         except Exception as e:
             logger.error(f"Error in TailoredMixup: {e}")
         return x_anchor.copy()
+    
+
+class RandomFrequencyMask(BaseAugmentation):
+    """
+    Maschera casualmente un intervallo di frequenze nel dominio spettrale.
+    Particolarmente utile per REM (maschera theta 4-7 Hz)
+    """
+    def __init__(self, range=(4.0, 7.0), mask_ratio=0.3, sampling_rate=100.0, p=0.3):
+        super().__init__(p)
+        self.range = range
+        self.mask_ratio = mask_ratio
+        self.sampling_rate = sampling_rate
+        logger.debug(f"RandomFrequencyMask range: {range}, mask_ratio: {mask_ratio}, sampling_rate: {sampling_rate}, p: {p}")
+
+    def __call__(self, x, x_random=None):
+        try:
+            if self.should_apply():
+                n = len(x)
+                freqs = np.fft.rfftfreq(n, d=1.0/self.sampling_rate)
+                
+                freq_range_width = self.range[1] - self.range[0]
+                low_freq = random.uniform(self.range[0], self.range[1] - freq_range_width * self.mask_ratio)
+                high_freq = low_freq + freq_range_width * self.mask_ratio
+                
+                mask_indices = np.where((freqs >= low_freq) & (freqs <= high_freq))[0]
+                
+                if len(mask_indices) > 0:
+                    X = np.fft.rfft(x)
+                    X[mask_indices] = 0
+                    x_masked = np.fft.irfft(X, n=n)
+                    logger.debug(f"Masked frequencies: {low_freq:.2f}-{high_freq:.2f} Hz")
+                    return x_masked
+        except Exception as e:
+            logger.error(f"Error in RandomFrequencyMask: {e}")
+        return x   

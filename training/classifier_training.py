@@ -9,14 +9,16 @@ logger = logging.getLogger(__name__)
 
 def get_custom_class_weights(device='cuda'):
     """
-    Pesi personalizzati per bilanciare N1/N3 senza uccidere N2.
+    Pesi TEST 10118: [0.4, 0.9, 1.3, 1.0, 1.5]
+    - REM aumentato a 1.5
+    - N1 ridotto a 0.9
+    - N3 ridotto a 1.0
     """
-    # Pesi più equilibrati per proteggere N2
-    class_weights = torch.tensor([0.5, 1.0, 1.2, 1.0, 1.2], dtype=torch.float).to(device)
+    class_weights = torch.tensor([0.4, 0.9, 1.3, 1.0, 1.5], dtype=torch.float).to(device)
     
     class_names = ['W', 'N1', 'N2', 'N3', 'REM']
     logger.info("=" * 50)
-    logger.info("CUSTOM CLASS WEIGHTS (bilanciati):")
+    logger.info("CUSTOM CLASS WEIGHTS (test 10118):")
     for i, (name, weight) in enumerate(zip(class_names, class_weights)):
         logger.info(f"  {name}: {weight:.4f}")
     logger.info("=" * 50)
@@ -24,9 +26,6 @@ def get_custom_class_weights(device='cuda'):
     return class_weights
 
 def get_class_weights_from_loader(train_loader, num_classes=5, device='cuda'):
-    """
-    Calcola i pesi automaticamente dal dataset (alternativa).
-    """
     from sklearn.utils.class_weight import compute_class_weight
     
     all_labels = []
@@ -51,9 +50,6 @@ def get_class_weights_from_loader(train_loader, num_classes=5, device='cuda'):
     return class_weights
 
 def calculate_class_accuracy(encoder, classifier, data_loader, device='cuda', num_classes=5):
-    """
-    Calcola l'accuracy per singola classe.
-    """
     encoder.eval()
     classifier.eval()
     
@@ -82,9 +78,6 @@ def calculate_class_accuracy(encoder, classifier, data_loader, device='cuda', nu
     return accuracy_per_class.cpu().numpy()
 
 def evaluate_classifier(encoder, classifier, data_loader, criterion, device='cuda'):
-    """
-    Evaluates the classifier on a given dataset.
-    """
     try:
         encoder.eval()
         classifier.eval()
@@ -114,9 +107,6 @@ def evaluate_classifier(encoder, classifier, data_loader, criterion, device='cud
         raise
 
 def save_model(classifier, save_path):
-    """
-    Saves the classifier model to the specified path.
-    """
     try:
         torch.save(classifier.state_dict(), save_path)
         logger.info("Saved best model to %s", save_path)
@@ -125,9 +115,6 @@ def save_model(classifier, save_path):
         raise
 
 def train_epoch(encoder, classifier, train_loader, criterion, optimizer, device, epoch):
-    """
-    Trains the classifier for one epoch.
-    """
     try:
         tensorboard_logger = get_tensorboard_logger()
         classifier.train()
@@ -180,17 +167,13 @@ def train_classifier(
     check_interval=25,
     min_improvement=0.01,
     use_weighted_loss=True,
-    custom_weights=True  # NUOVO: usa pesi personalizzati invece di auto
+    custom_weights=True
 ):
-    """
-    Trains the classifier while keeping the encoder frozen.
-    """
     try:
         tensorboard_logger = get_tensorboard_logger()
         encoder.eval()
         classifier.to(device)
         
-        # CALCOLA PESI PER CLASSE
         if use_weighted_loss and criterion is None:
             if custom_weights:
                 class_weights = get_custom_class_weights(device)
@@ -221,18 +204,15 @@ def train_classifier(
                     total_epochs, num_epochs, avg_train_loss, epoch_duration
                 )
 
-            # Validate the classifier
             val_loss, val_accuracy = evaluate_classifier(encoder, classifier, val_loader, criterion, device)
             logger.info(
                 "Validation Loss after %d epochs: %.4f, Validation Accuracy: %.4f",
                 total_epochs, val_loss, val_accuracy
             )
             
-            # Calcola accuracy per classe
             class_acc = calculate_class_accuracy(encoder, classifier, val_loader, device, num_classes=5)
             logger.info(f"📊 Class accuracy - W: {class_acc[0]:.2f}%, N1: {class_acc[1]:.2f}%, N2: {class_acc[2]:.2f}%, N3: {class_acc[3]:.2f}%, REM: {class_acc[4]:.2f}%")
             
-            # Log metrics
             tensorboard_logger.add_scalar('Validation/Loss', val_loss, total_epochs)
             tensorboard_logger.add_scalar('Validation/Accuracy', val_accuracy, total_epochs)
             for i, acc in enumerate(class_acc):

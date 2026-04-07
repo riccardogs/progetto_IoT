@@ -8,11 +8,12 @@
   },
   "pretraining_params": {
     "batch_size": 512,
-    "temperature": 0.15,
+    "temperature": 0.20,
     "dropout_rate": 0.2,
     "latent_dim": 64,
     "learning_rate": 0.001,
-    "max_epochs": 30,
+    "weight_decay": 0.0005,
+    "max_epochs": 10,
     "check_interval": 5,
     "min_improvement": 0.001,
     "best_model_pth": "checkpoints/encoder/encoder_"
@@ -30,13 +31,13 @@
   },
   "sup_training_params": {
     "learning_rate": 0.001,
-    "max_epochs": 50,
+    "max_epochs": 15,
     "dropout_rate": 0.5,
-    "check_interval": 10,
+    "check_interval": 5,
     "min_improvement": 0.001,
     "best_model_pth": "checkpoints/classifier/classifier_"
   },
-  "experiment_num": 10116,
+  "experiment_num": 10122,
   "augmentations": {
     "TimeWarping": {
       "p": 0.7,
@@ -51,6 +52,12 @@
     },
     "SignFlip": {
       "p": 0.25
+    },
+    "RandomFrequencyMask": {
+      "p": 0.35,
+      "range": [4.0, 7.0],
+      "mask_ratio": 0.4,
+      "sampling_rate": 100.0
     }
   }
 }

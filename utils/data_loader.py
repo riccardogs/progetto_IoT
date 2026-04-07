@@ -64,8 +64,8 @@ def load_eeg_data(dataset_path: str, num_files_to_process: Optional[int] = None)
             for label in eeg_data[set_name].keys():
                 eeg_data[set_name][label] = np.array(eeg_data[set_name][label])
         
-        # OVERSAMPLING MIRATO: N1=5500, N2=8500, N3=6800, REM=8500
-        eeg_data = oversample_minority_classes(eeg_data, target_n1=5500, target_n2=8500, target_n3=6800, target_rem=8500)
+        # OVERSAMPLING TEST 10118: N1=6500, N2=8500, N3=7000, REM=9000
+        eeg_data = oversample_minority_classes(eeg_data, target_n1=6500, target_n2=8500, target_n3=7000, target_rem=9000)
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
@@ -73,12 +73,13 @@ def load_eeg_data(dataset_path: str, num_files_to_process: Optional[int] = None)
 
     return eeg_data
 
-def oversample_minority_classes(eeg_data, target_n1=5500, target_n2=8500, target_n3=6800, target_rem=8500, random_seed=42):
+def oversample_minority_classes(eeg_data, target_n1=6500, target_n2=8500, target_n3=7000, target_rem=9000, random_seed=42):
     """
-    Oversampling differenziato per classe:
-    - N1: ridotto per diminuire falsi positivi
-    - N2 e REM: aumentati per migliorare performance
-    - N3: invariato
+    Oversampling differenziato per classe - TEST 10118:
+    - N1: 6500
+    - N2: 8500
+    - N3: 7000 (ridotto da 7500)
+    - REM: 9000 (aumentato da 8500)
     """
     np.random.seed(random_seed)
     
@@ -87,7 +88,7 @@ def oversample_minority_classes(eeg_data, target_n1=5500, target_n2=8500, target
     
     for set_name in ['train']:
         logger.info(f"=" * 50)
-        logger.info(f"OVERSAMPLING MIRATO:")
+        logger.info(f"OVERSAMPLING MIRATO (test 10118):")
         logger.info(f"  N1 target: {target_n1}")
         logger.info(f"  N2 target: {target_n2}")
         logger.info(f"  N3 target: {target_n3}")

@@ -8,21 +8,10 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-def train_epoch(model, dataloader, optimizer, device, temperature, epoch):
+def train_epoch(model, dataloader, optimizer, device, temperature, epoch, use_grad_clip=False, max_norm=1.0):
     tensorboard_logger = get_tensorboard_logger()
     """
     Trains the model for one epoch.
-
-    Parameters:
-    - model (torch.nn.Module): The neural network model to train.
-    - dataloader (torch.utils.data.DataLoader): DataLoader providing contrastive pairs.
-    - optimizer (torch.optim.Optimizer): Optimizer for updating the model's parameters.
-    - device (str): Device to run the training on ('cuda' or 'cpu').
-    - temperature (float): Temperature parameter for NT-Xent loss.
-    - epoch (int): Current epoch number.
-
-    Returns:
-        float: Average loss for the epoch.
     """
     model.train()
     total_loss = 0.0
@@ -41,11 +30,17 @@ def train_epoch(model, dataloader, optimizer, device, temperature, epoch):
         
         # Compute NT-Xent loss
         loss = nt_xent_loss(z_i, z_j, temperature)
-        loss.backward()  # Backpropagation
-        optimizer.step()  # Update model parameters
+        loss.backward()
+        
+        # Gradient clipping (evita esplosione gradienti, aiuta stabilità)
+        if use_grad_clip:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+        
+        optimizer.step()
         
         total_loss += loss.item()
         pbar.set_postfix({'loss': f'{loss.item():.4f}'})
+    
     epoch_duration = time() - start_time
     average_loss = total_loss / len(dataloader)
     tensorboard_logger.add_scalar('Training Loss', average_loss, epoch)
@@ -53,23 +48,10 @@ def train_epoch(model, dataloader, optimizer, device, temperature, epoch):
     return average_loss
 
 def save_model(model, save_path):
-    """
-    Saves the model to the specified path.
-
-    Parameters:
-    - model (torch.nn.Module): The model to save.
-    - save_path (str): Path to save the model.
-
-    Raises:
-        Exception: If an error occurs during saving.
-    """
     torch.save(model.state_dict(), save_path)
     logger.info("Saved best model to %s", save_path)
 
 def compute_validation_loss(model, dataloader, device, temperature):
-    """
-    Compute the average loss on the validation dataset.
-    """
     model.eval()
     total_loss = 0.0
     with torch.no_grad():
@@ -87,24 +69,10 @@ def compute_validation_loss(model, dataloader, device, temperature):
     return average_loss
 
 def train_contrastive_model(model, dataloader, optimizer, device='cuda', num_epochs=5, temperature=0.1, val_dataloader=None, 
-                            check_interval=50, min_improvement=0.01, best_model_path='best_encoder.pth'):
+                            check_interval=50, min_improvement=0.01, best_model_path='best_encoder.pth',
+                            use_grad_clip=True, max_norm=1.0, use_warmup=True, warmup_epochs=5):
     """
-    Contrastive training loop for a model using NT-Xent loss.
-
-    Parameters:
-    - model (torch.nn.Module): The neural network model to train.
-    - dataloader (torch.utils.data.DataLoader): DataLoader providing contrastive pairs.
-    - optimizer (torch.optim.Optimizer): Optimizer for updating the model's parameters.
-    - device (str): Device to run the training on ('cuda' or 'cpu'). Default is 'cuda'.
-    - num_epochs (int): Number of training epochs. Default is 5.
-    - temperature (float): Temperature parameter for NT-Xent loss. Default is 0.1.
-    - val_dataloader (torch.utils.data.DataLoader, optional): DataLoader for validation data. Default is None.
-    - check_interval (int): Number of epochs between validation checks. Default is 50.
-    - min_improvement (float): Minimum improvement in validation loss to continue training. Default is 0.01.
-    - best_model_path (str): Path to save the best model. Default is 'best_encoder.pth'.
-
-    Raises:
-    - Exception: If an error occurs during training.
+    Contrastive training loop with gradient clipping and warm-up.
     """
     tensorboard_logger = get_tensorboard_logger()
     
@@ -122,15 +90,30 @@ def train_contrastive_model(model, dataloader, optimizer, device='cuda', num_epo
     # LOG DELLA TEMPERATURA USATA
     logger.info(f"Starting contrastive training for {num_epochs} epochs on {device}.")
     logger.info(f"Temperature: {temperature} (valori più alti aiutano a separare classi simili come N1 e REM)")
+    if use_grad_clip:
+        logger.info(f"Gradient clipping enabled (max_norm={max_norm})")
+    if use_warmup:
+        logger.info(f"Warm-up enabled for {warmup_epochs} epochs")
     
     best_val_loss = float('inf')
     epochs_since_improvement = 0
     total_epochs = 0
-
+    
+    # Warm-up: learning rate più basso all'inizio
+    base_lr = optimizer.param_groups[0]['lr']
+    
     try:
         while total_epochs < num_epochs:
+            # Warm-up: aumenta gradualmente il learning rate
+            if use_warmup and total_epochs < warmup_epochs:
+                warmup_lr = base_lr * (total_epochs + 1) / warmup_epochs
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = warmup_lr
+                logger.debug(f"Warm-up epoch {total_epochs+1}: lr={warmup_lr:.6f}")
+            
             # Train for one epoch
-            average_loss = train_epoch(model, dataloader, optimizer, device, temperature, total_epochs)
+            average_loss = train_epoch(model, dataloader, optimizer, device, temperature, total_epochs, 
+                                       use_grad_clip, max_norm)
             logger.info(f"Epoch [{total_epochs + 1}/{num_epochs}], Training Loss: {average_loss:.4f}")
             total_epochs += 1
 
@@ -153,6 +136,12 @@ def train_contrastive_model(model, dataloader, optimizer, device='cuda', num_epo
                     if epochs_since_improvement >= check_interval:
                         logger.info("Early stopping due to no improvement.")
                         break
+        
+        # Ripristina learning rate originale (se modificato)
+        if use_warmup:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = base_lr
+                
     except Exception as e:
         logger.error(f"An error occurred during training: {e}")
         raise e
